@@ -199,6 +199,9 @@ class BayesianRidge(RegressorMixin, LinearModel):
         fit_intercept=True,
         copy_X=True,
         verbose=False,
+        positive_indices=None,
+        negative_indices=None,
+        scalar_multiple_constraints=None,
     ):
         self.max_iter = max_iter
         self.tol = tol
@@ -212,6 +215,9 @@ class BayesianRidge(RegressorMixin, LinearModel):
         self.fit_intercept = fit_intercept
         self.copy_X = copy_X
         self.verbose = verbose
+        self.positive_indices = positive_indices
+        self.negative_indices = negative_indices
+        self.scalar_multiple_constraints = scalar_multiple_constraints
 
     @_fit_context(prefer_skip_nested_validation=True)
     def fit(self, X, y, sample_weight=None):
@@ -395,6 +401,19 @@ class BayesianRidge(RegressorMixin, LinearModel):
             )
 
         rmse_ = np.sum((y - np.dot(X, coef_)) ** 2)
+
+        # Apply positive constraints
+        if self.positive_indices is not None:
+            coef_[self.positive_indices] = np.clip(coef_[self.positive_indices], 0, np.inf)
+
+        # Apply negative constraints
+        if self.negative_indices is not None:
+            coef_[self.negative_indices] = np.clip(coef_[self.negative_indices], -np.inf, 0)
+
+        # Apply scalar multiple constraints
+        if self.scalar_multiple_constraints is not None:
+            for (i, j, scalar) in self.scalar_multiple_constraints:
+                coef_[i] = np.maximum(coef_[i], scalar * coef_[j])
 
         return coef_, rmse_
 
